@@ -21,5 +21,5 @@ def cprint(text: str,
 
     A function that just prints color :)
     """
-    print(f"{COLORS[clr]}{text}\033\0m")
+    print(f"{COLORS[clr]}{text}\033[0m")
 

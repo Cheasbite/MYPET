@@ -1,7 +1,7 @@
 import sys
 from .colors import COLORS
 
-def arrow_selector(options: list[str] | tuple[str]) -> str:
+def arrow_selector(options: list[str] | tuple[str, ...]) -> str:
     """
     Arrow Selection option
 
