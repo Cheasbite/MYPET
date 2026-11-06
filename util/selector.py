@@ -1,7 +1,4 @@
-import msvcrt
 import sys
-import termios
-import tty
 from .colors import COLORS
 
 def arrow_selector(options: list[str] | tuple[str]) -> str:
@@ -24,9 +21,9 @@ def arrow_selector(options: list[str] | tuple[str]) -> str:
 
             for i, opt in enumerate(options):
                 if i == curr:
-                    sys.stdout.write(f' {COLORS["CYAN"]}> {i+1}. {opt}{COLORS["RESET"]}\n')
+                    sys.stdout.write(f' {COLORS["CYAN"]}> {opt}{COLORS["RESET"]}\n')
                 else:
-                    sys.stdout.write(f'   {i+1}. {opt}\n')
+                    sys.stdout.write(f'   {opt}\n')
 
             key = __get_key_pressed()
             if key == "UP": curr = (curr - 1) % total_opts
@@ -51,6 +48,8 @@ def __get_key_pressed():
         # best guess to capture CTRL+C in window
         if ord(msvcrt.getch()) == 3: return "INTERRUPT"
     else:
+        import termios
+        import tty
         # access the stdin 0
         fd = sys.stdin.fileno()
 
