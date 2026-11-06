@@ -1,6 +1,10 @@
 # python stuff
 __pycache__/
 
+# db directory should not be on github
+db/
+db.bak/
+
 # For task related work
 Tasks.md
 
