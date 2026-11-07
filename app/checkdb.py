@@ -45,8 +45,6 @@ def check_db_has_values() -> bool:
 
         value = cursor.fetchone()
 
-        print(value)
-
         if value: return True
 
         return False
