@@ -7,6 +7,23 @@ import calendar
 import datetime
 
 @dataclass
+class StartTime:
+    """
+    The start date of when the service had started.
+
+    Used in payment_for_month.
+
+    Parameters
+    - Year: int
+    - Month: int (The integer representation of the month eg. 1 for January)
+    - Day: int
+    """
+    Year: int
+    Month: int
+    Day: int
+
+
+@dataclass
 class FreqFormat:
     Time: int
     Date: Literal["Days", "Weeks"] = "Days"
