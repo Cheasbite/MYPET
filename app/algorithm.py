@@ -18,6 +18,9 @@ class StartTime:
     Day: int
 
 def payment_for_month(startTime: StartTime, year: int, month: int, frequency: int, expense: float):
+    if frequency <= 0: raise ValueError("Frequency cannot be less than or equal 0!")
+    if expense < 0: raise ValueError("Expense cannot be less than 0!")
+
     start = date(startTime.Year, startTime.Month, startTime.Day)
 
     target_month_start = date(year, month, 1)

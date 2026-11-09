@@ -1,16 +1,20 @@
 import os
 import sqlite3
+from pathlib import Path
 
 root_path = os.path.abspath(os.path.curdir)
 
 record_db_dir = os.path.join(root_path, "db", "record.db")
 db_path = os.path.dirname(record_db_dir)
 
+db_abs_path = Path(record_db_dir).resolve()
+db_ro_mode = f"{db_abs_path.as_uri()}?mode=ro"
+
 # Create files if not exists yet
 def check_db_exists():
     if not os.path.exists(db_path): os.makedirs(db_path)
-    if not os.path.exists(record_db_dir):
-        con = sqlite3.connect(record_db_dir)
+    if not os.path.exists(db_abs_path):
+        con = sqlite3.connect(db_abs_path)
 
         try:
             cursor = con.cursor()
@@ -22,6 +26,7 @@ def check_db_exists():
                         type TEXT NOT NULL,
                         expense REAL NOT NULL,
                         frequency TEXT NOT NULL,
+                        started_at TEXT NOT NULL,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     );
                     """)

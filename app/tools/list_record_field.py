@@ -1,9 +1,9 @@
-from ..checkdb import record_db_dir
+from ..checkdb import db_ro_mode
 import sqlite3
 
 class ListRecords:
     def __init__(self) -> None:
-        self.con = sqlite3.connect(record_db_dir, uri=True)
+        self.con = sqlite3.connect(db_ro_mode, uri=True)
 
     def list_unique_frequency(self):
         """
