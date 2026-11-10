@@ -2,9 +2,6 @@ from ..checkdb import db_ro_mode
 import sqlite3
 
 class ListRecords:
-    def __init__(self) -> None:
-        self.con = sqlite3.connect(db_ro_mode, uri=True)
-
     def list_unique_frequency(self):
         """
         Listing all the available frequencies from the record.
@@ -25,9 +22,11 @@ class ListRecords:
         """
 
         res = []
+        con = None
 
         try:
-            cursor = self.con.cursor()
+            con = sqlite3.connect(db_ro_mode, uri=True)
+            cursor = con.cursor()
 
             cursor.execute("SELECT DISTINCT frequency FROM Records")
 
@@ -42,7 +41,7 @@ class ListRecords:
 
             return res
         finally:
-            if self.con: self.con.close()
+            if con: con.close()
 
     def list_unique_type(self):
         """
@@ -63,9 +62,11 @@ class ListRecords:
             ]
         """
         res = []
+        con = None
 
         try:
-            cursor = self.con.cursor()
+            con = sqlite3.connect(db_ro_mode, uri=True)
+            cursor = con.cursor()
 
             cursor.execute("SELECT DISTINCT type FROM Records")
 
@@ -80,11 +81,14 @@ class ListRecords:
 
             return res
         finally:
-            if self.con: self.con.close()
+            if con: con.close()
 
     def list_record_field(self) -> list[dict[str, str]]:
         """
         Listing the database fields.
+
+        It doesn't contain all the information needed for the search tool.
+        If needed to search, please look into list_frequency_types and list_type_types.
 
         Accepts no argument and return a list of object which contains record_field, record_type, and record_description.
 
@@ -100,6 +104,7 @@ class ListRecords:
             ]
         """
         res = []
+        con = None
 
         descriptions = {
             "id": "The primary key of the table!",
@@ -107,11 +112,13 @@ class ListRecords:
             "type": "The type of the expense. What is this record for?",
             "expense": "The cost of the record in USD.",
             "frequency": "How many times do I have to spend for this record?",
+            "started_at": "When the recurring payment started.",
             "created_at": "When was the record created?"
         }
 
         try:
-            cursor = self.con.cursor()
+            con = sqlite3.connect(db_ro_mode, uri=True)
+            cursor = con.cursor()
 
             cursor.execute("PRAGMA table_info(Records)")
 
@@ -134,5 +141,5 @@ class ListRecords:
             return res
 
         finally:
-            if self.con: self.con.close()
+            if con: con.close()
 

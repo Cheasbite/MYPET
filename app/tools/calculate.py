@@ -1,6 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+import sqlite3
+from ..checkdb import db_ro_mode
 
-def payment_for_month(startYear: int, startMonth: int, startDay: int, year: int, month: int, frequency: int, expense: float):
+def payment_per_month_for_service(startYear: int, startMonth: int, startDay: int, year: int, month: int, frequency: int, expense: float):
     '''
     payment_for_month(startYear, startMonth, startDay, year, month, frequency, expense)
 
@@ -36,14 +38,8 @@ def payment_for_month(startYear: int, startMonth: int, startDay: int, year: int,
     if expense < 0:
         return __formatter(None, None, None, None, "Expense cannot be less than 0!")
 
-    try:
-        start = date(startYear, startMonth, startDay)
-        target_month_start = date(year, month, 1)
-    except ValueError as e:
-        return __formatter(None, None, None, None, f"Invalid date provided: {e}")
-
-    next_month_from_target = date(year + (month == 12), month % 12 + 1, 1)
-    target_month_end = next_month_from_target - timedelta(days=1)
+    start = date(startYear, startMonth, startDay)
+    target_month_start, target_month_end = __get_days_of_month(year=year, month=month)
 
     start_days = start.toordinal()
     target_start_days = target_month_start.toordinal()
@@ -63,11 +59,105 @@ def payment_for_month(startYear: int, startMonth: int, startDay: int, year: int,
 
     return __formatter(count, total_cost, first_payment, next_month_payment)
 
+def payment_per_month(target_year: int, target_month: int):
+    '''
+    payment_per_month(target_year, target_month)
+
+    Calculate the total expense for the whole database within a target calendar month.
+
+    Unlike payment_per_month_for_service, this function needs no service details from the
+    caller: it reads every row of the Records table, converts each row's stored frequency
+    label (e.g. "Once", "Daily", "Weekly", "Monthly") into an interval in days, and for each
+    row delegates to payment_per_month_for_service to count how many payments fall inside the
+    target month. The per-row totals are then summed, so recurring rows (Weekly/Monthly) are
+    charged multiple times per month as they should be.
+
+    Parameters:
+    - target_year (int): year of the target calendar month.
+    - target_month (int): month of the target calendar month (1-12).
+
+    Returns:
+    A dict with:
+    - cost (float): total expense for the target month across all records. 0 when the database
+      has no rows, or when no row has a payment due in that month.
+
+    Notes:
+    - A month-based frequency is converted using the number of days in the target month.
+    - Database errors are printed rather than raised, and the affected rows are skipped; the
+      caller therefore only ever receives the accumulated `cost` value.
+    - The database is opened read-only and always closed before returning.
+    '''
+    con = sqlite3.connect(db_ro_mode, uri=True)
+    res = []
+
+    _, month = __get_days_of_month(target_year, target_month)
+    target_month_days = month.day
+
+    try:
+        cursor = con.cursor()
+
+        statement = "SELECT expense, frequency, started_at FROM Records"
+
+        cursor.execute(statement)
+
+        rows = cursor.fetchall()
+
+        for row in rows:
+            freq: list[str] = row[1].lower().split()
+
+            frequency = 0
+            for i in freq:
+                if i.isdecimal(): frequency += int(i)
+                if i.startswith("d", 0, 1) or i.startswith("o", 0, 1): frequency = frequency + 1 if frequency == 0 else frequency * 1
+                if i.startswith("w", 0, 1): frequency = frequency + 7 if frequency == 0 else frequency * 7
+                if i.startswith("m", 0, 1): frequency = frequency + target_month_days
+
+            format_date = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+            started_at = (format_date.year, format_date.month, format_date.day)
+
+            format = {"expense": row[0], "frequency": frequency, "started_at": started_at}
+
+            res.append(format)
+
+    except sqlite3.Error as e:
+        print(e)
+
+    finally:
+        if con: con.close()
+
+    total_cost = 0
+    for v in res:
+        expense, frequency, started_at = v.get("expense"), v.get("frequency"), v.get("started_at")
+
+        call = payment_per_month_for_service(
+                startYear=started_at[0],
+                startMonth=started_at[1],
+                startDay=started_at[2],
+                year=target_year,
+                month=target_month,
+                frequency=frequency,
+                expense=expense,
+                )
+
+        count, cost = call.get("count"), call.get("total_cost")
+
+        if count and cost: total_cost += count * cost
+
+    return {"cost": total_cost}
+
+def __get_days_of_month(year, month):
+    target_month_start = date(year, month, 1)
+    next_month_from_target = date(year + (month == 12), month % 12 + 1, 1)
+    target_month_end = next_month_from_target - timedelta(days=1)
+
+    return target_month_start, target_month_end
+
 def __formatter(count, cost, first_payment, next_payment, message = None):
     response = {"count": count, "total_cost": cost, "first_payment": first_payment, "next_month_payment": next_payment, "message": message}
 
     return response
 
 if __name__ == "__main__":
-    print(payment_for_month(2026, 1, 17, 2026, 4, -3, 2.50))
+    res1 = payment_per_month_for_service(2026, 1, 17, 2026, 4, 3, 2.50)
+    res2 = payment_per_month_for_service(2026, 1, 1, 2026, 8, 10, 10.50)
 
