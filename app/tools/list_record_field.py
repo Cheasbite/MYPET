@@ -143,3 +143,6 @@ class ListRecords:
         finally:
             if con: con.close()
 
+if __name__ == "__main__":
+    print(ListRecords().list_unique_type())
+

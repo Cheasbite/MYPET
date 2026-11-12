@@ -24,6 +24,8 @@ while True:
     db_has_value = checkdb.check_db_has_values()
     try:
         name = input("What a larper: ")
+        result = selector.arrow_selector(["Utility", "Sub", "Other"])
+        result1 = selector.arrow_selector(["Daily", "Weekly", "Monthly", "Other"])
     except KeyboardInterrupt:
         exit(0)
 

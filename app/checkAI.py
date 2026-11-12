@@ -7,26 +7,30 @@ from .tools import calculate, list_record_field, search_record
 
 __listing_fields = list_record_field.ListRecords()
 AVAILABLE_TOOLS = {
-    "payment_per_month_for_service": calculate.payment_per_month_for_service,
     "list_record_fields": __listing_fields.list_record_field,
     "list_frequency_types": __listing_fields.list_unique_frequency,
     "list_type_types": __listing_fields.list_unique_type,
     "search_record": search_record.custom_search_records,
+    "payment_per_month_for_service": calculate.payment_per_month_for_service,
+    "payment_per_month_for_services": calculate.payment_per_month_per_services,
     "payment_per_month": calculate.payment_per_month,
 }
 
 # Conversation history kept in memory for the life of the process. It is never
 # written to disk; it only lets later prompts see earlier questions and tool results.
 __conversation_history: list[dict] = []
-MAX_HISTORY_MESSAGES = 60
 
 def check_AI_exist() -> list:
     return __get_providers()
 
-def use_AI(providers: str, message: str):
-    if providers == "ollama":
-        local_models = __get_local_model()
-    pass
+def use_AI(providers: str):
+    local_models = None
+    if providers == "ollama": local_models = __get_local_model()
+    else:
+        print("Coming Soon!")
+        return -1
+
+    return local_models
 
 def __get_local_model():
     result = subprocess.run(["ollama", "ls"], check=True, text=True, capture_output=True)
@@ -57,7 +61,7 @@ def __format_tool_function(name: str, description: str, params: object):
 
     return tool
 
-def __trim_history(history: list[dict], max_messages: int = MAX_HISTORY_MESSAGES) -> None:
+def __trim_history(history: list[dict], max_messages: int = 60) -> None:
     if len(history) <= max_messages:
         return
 
@@ -69,7 +73,7 @@ def __trim_history(history: list[dict], max_messages: int = MAX_HISTORY_MESSAGES
         while len(history) > 1 and history[1].get("role") != "user":
             del history[1]
 
-def __call_ollama(prompt: str, model: str | None = None):
+def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
     import requests
 
     systemPrompt = (
@@ -191,7 +195,7 @@ def __call_ollama(prompt: str, model: str | None = None):
 
     messages = __conversation_history
     payload = {
-        "model": "gemma4:e4b",
+        "model": model,
         "messages": messages,
         "tools": tools,
         "stream": False,
@@ -200,7 +204,7 @@ def __call_ollama(prompt: str, model: str | None = None):
     }
 
     # Allow the model to chain a few tool calls before it must answer.
-    for _ in range(8):
+    for _ in range(20):
         response = requests.post(url, headers=headers, json=payload)
 
         if response.status_code != 200:

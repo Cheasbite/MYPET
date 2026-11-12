@@ -59,6 +59,75 @@ def payment_per_month_for_service(startYear: int, startMonth: int, startDay: int
 
     return __formatter(count, total_cost, first_payment, next_month_payment)
 
+def payment_per_month_per_services(types: list[str], target_year: int, target_month: int):
+    con = sqlite3.connect(db_ro_mode, uri=True)
+    res = []
+
+    _, month = __get_days_of_month(target_year, target_month)
+    target_month_days = month.day
+
+    try:
+        cursor = con.cursor()
+
+        rows = []
+        for v in types:
+            statement = f"SELECT type, expense, frequency, started_at FROM Records WHERE type = '{v}'"
+
+            cursor.execute(statement)
+
+            _rows = cursor.fetchall()
+
+            for _row in _rows:
+                rows.append(_row)
+
+        for row in rows:
+            freq: list[str] = row[2].lower().split()
+
+            frequency = 0
+            for i in freq:
+                if i.isdecimal(): frequency += int(i)
+                if i.startswith("d", 0, 1) or i.startswith("o", 0, 1): frequency = frequency + 1 if frequency == 0 else frequency * 1
+                if i.startswith("w", 0, 1): frequency = frequency + 7 if frequency == 0 else frequency * 7
+                if i.startswith("m", 0, 1): frequency = frequency + target_month_days
+
+            format_date = datetime.strptime(row[3], '%Y-%m-%d %H:%M:%S')
+            started_at = (format_date.year, format_date.month, format_date.day)
+
+            format = {"type": row[0],"expense": row[1], "frequency": frequency, "started_at": started_at}
+
+            res.append(format)
+
+    except sqlite3.Error as e: res.append(f"Error! {e}")
+    finally:
+        if con: con.close()
+
+    services = {}
+
+    for v in res:
+        service, expense, frequency, started_at = v.get("type"), v.get("expense"), v.get("frequency"), v.get("started_at")
+
+        call = payment_per_month_for_service(
+            startYear=started_at[0],
+            startMonth=started_at[1],
+            startDay=started_at[2],
+            year=target_year,
+            month=target_month,
+            frequency=frequency,
+            expense=expense,
+        )
+
+        count, cost = call.get("count"), call.get("total_cost")
+
+        if not count: return services.update({"Error": f"Possible errors are {service} not exist or the target_year or target_date is less than the current date"})
+        total_cost = count * cost
+
+        if service not in services:
+            services.update({service: total_cost})
+        else:
+            services[service] += total_cost
+
+    return services
+
 def payment_per_month(target_year: int, target_month: int):
     '''
     payment_per_month(target_year, target_month)
@@ -160,4 +229,7 @@ def __formatter(count, cost, first_payment, next_payment, message = None):
 if __name__ == "__main__":
     res1 = payment_per_month_for_service(2026, 1, 17, 2026, 4, 3, 2.50)
     res2 = payment_per_month_for_service(2026, 1, 1, 2026, 8, 10, 10.50)
+
+    res = payment_per_month_per_services(["Grocery", "Subscriptions"], 2026, 12)
+    print(res)
 
