@@ -2,7 +2,7 @@
 # Basically it's the central hub to run the entire system
 from app import checkdb, checkAI
 from app.types import *
-from util import colors, selector, table
+from util import colors, selector, table, clear
 from datetime import date
 from app.tools.calculate import payment_per_month
 
@@ -56,6 +56,8 @@ while True:
 
             getKey = input("Continue? (Y/n): ")
             if getKey and getKey.lower()[0] == 'n': exit(0)
+
+            clear.clear()
 
     except KeyboardInterrupt:
         exit(0)
