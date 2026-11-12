@@ -1,6 +1,5 @@
-import sys, subprocess
+import sys
 from .colors import COLORS
-from .clear import clear
 
 def arrow_selector(options: list[str] | tuple[str, ...]) -> str:
     """
@@ -33,8 +32,6 @@ def arrow_selector(options: list[str] | tuple[str, ...]) -> str:
             if key == "ENTER": return options[curr]
     except KeyboardInterrupt:
         sys.exit(0)
-    finally:
-        clear()
 
 def __get_key_pressed():
     if sys.platform == 'win32':

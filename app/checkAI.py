@@ -19,12 +19,13 @@ AVAILABLE_TOOLS = {
 # written to disk; it only lets later prompts see earlier questions and tool results.
 __conversation_history: list[dict] = []
 
-def check_AI_exist() -> list:
+def check_AI_exist() -> list[str]:
     return __get_providers()
 
 def use_AI(providers: str):
     local_models = None
-    if providers == "ollama": local_models = __get_local_model()
+    if providers == "ollama":
+        local_models = __get_local_model()
     else:
         print("Coming Soon!")
         return -1
@@ -72,7 +73,7 @@ def __trim_history(history: list[dict], max_messages: int = 60) -> None:
         while len(history) > 1 and history[1].get("role") != "user":
             del history[1]
 
-def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
+def call_ollama(prompt: str, model: str = "gemma4:e4b"):
     import requests
 
     systemPrompt = (
@@ -83,6 +84,8 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
 "        2. Call search_record (or list_records) to find the relevant rows."
 "        3. For a monthly total, call payment_per_month(target_year, target_month) — its result also breaks the month down per type; do not sum expense yourself,"
 "           because recurring rows (Weekly/Monthly) are charged multiple times per month."
+"        4. If ask for anything specific about which is the cost the most in a type, make sure to search the frequency and account for the frequency too"
+"           since in a single month, those expenses can occur multiple time."
 
 "        Rules:"
 "        - Never invent dates, fields, record names, or amounts. Use the date above."
@@ -252,8 +255,8 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
                 except Exception as e:
                     result = {"error": f"Tool '{name}' failed: {e}"}
 
-            print(f"--- tool: {name} ---")
-            print(json.dumps(result, indent=2, default=str))
+#            print(f"--- tool: {name} ---")
+#            print(json.dumps(result, indent=2, default=str))
 
             messages.append({
                 "role": "tool",
@@ -269,5 +272,5 @@ if __name__ == "__main__":
 
         if prompt == "exit" or prompt == "/bye": break
 
-        __call_ollama(prompt)
+        call_ollama(prompt)
 
