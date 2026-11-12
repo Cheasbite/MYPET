@@ -4,6 +4,7 @@ import re
 import json
 from datetime import date
 from .tools import calculate, list_record_field, search_record
+from util import colors
 
 __listing_fields = list_record_field.ListRecords()
 AVAILABLE_TOOLS = {
@@ -228,7 +229,7 @@ def call_ollama(prompt: str, model: str = "gemma4:e4b"):
                 "role": "assistant",
                 "content": message.get("content") or "",
             })
-            print("Model Response:", message.get("content"))
+            print(f"{colors.COLORS["PURPLE"]}Model{colors.COLORS["RESET"]}:", message.get("content"))
             return
 
         # Keep the assistant turn (it carries the tool_calls) in the history.
