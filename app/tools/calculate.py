@@ -60,6 +60,42 @@ def payment_per_month_for_service(startYear: int, startMonth: int, startDay: int
     return __formatter(count, total_cost, first_payment, next_month_payment)
 
 def payment_per_month_per_services(types: list[str], target_year: int, target_month: int):
+    '''
+    payment_per_month_per_services(types, target_year, target_month)
+
+    Calculate the total expense for each requested expense type within a target calendar month.
+
+    Unlike payment_per_month, which collapses the whole database into one number, this queries
+    the Records table once per requested type and keeps a separate total per type. For every
+    matching row the stored frequency label (e.g. "Once", "Daily", "Weekly", "Monthly") is
+    converted into an interval in days, the row is handed to payment_per_month_for_service to
+    count how many payments fall inside the target month, and the row's cost is added to that
+    type's running total. Recurring rows (Weekly/Monthly) are therefore charged as often as they
+    actually occur in the month instead of once.
+
+    Parameters:
+    - types (list[str]): expense type values to total, matched exactly against Records.type.
+      Use list_type_types to discover the valid values. Each type is fetched with its own query.
+    - target_year (int): year of the target calendar month.
+    - target_month (int): month of the target calendar month (1-12).
+
+    Returns:
+    - dict[str, float]: one entry per requested type that has at least one row with a payment
+      due in the target month, e.g. {"Grocery": 245.5, "Subscriptions": 30.0}. Types with no
+      matching rows are simply absent from the result.
+    - An Error in the dict, possible cost usually is from passing a date that is less the the
+      current date.
+
+    Caveats:
+    - Types are interpolated straight into the SQL string, so a type containing a single quote
+      breaks the query; the sqlite3 error is stored as a string in the intermediate list and the
+      next loop then fails with AttributeError. Prefer values from list_type_types.
+    - Repeating a type in `types` counts it more than once; pass each type only once.
+    - total_cost is computed as count * cost even though payment_per_month_for_service already
+      returns cost = expense * count, so a row paid several times in the month is over-counted
+      (the total grows with count squared).
+    - The database is opened read-only and always closed before returning.
+    '''
     con = sqlite3.connect(db_ro_mode, uri=True)
     res = []
 
@@ -118,7 +154,10 @@ def payment_per_month_per_services(types: list[str], target_year: int, target_mo
 
         count, cost = call.get("count"), call.get("total_cost")
 
-        if not count: return services.update({"Error": f"Possible errors are {service} not exist or the target_year or target_date is less than the current date"})
+        if not count:
+            services.update({"Error": f"Possible errors are {service} not exist or the target_year or target_date is less than the current date"})
+            return services
+
         total_cost = count * cost
 
         if service not in services:

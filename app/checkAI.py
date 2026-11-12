@@ -118,7 +118,8 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
             "next payment after the month ends. Use this for one specific service or a "
             "'what if' calculation. It does NOT read the database, so you must pass every "
             "argument from the record you already looked up. If you want the total for the whole "
-            "database, use payment_per_month instead. Always check the returned `message` field "
+            "database, use payment_per_month; for chosen types, use payment_per_month_for_services. "
+            "Always check the returned `message` field "
             "before using the other values; errors come back as data, not exceptions.",
             {
                 "type": "object",
@@ -133,6 +134,32 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
                 },
                 "required": ["startYear", "startMonth", "startDay",
                              "year", "month", "frequency", "expense"],
+            },
+        ),
+        __format_tool_function(
+            "payment_per_month_for_services",
+            "SELECTED TYPES MONTHLY TOTAL (reads the database). Calculate the total expense for "
+            "one or more specific expense types in one calendar month and return one total per "
+            "type, e.g. {\"Grocery\": 245.5, \"Subscriptions\": 30.0}. It looks up the records "
+            "whose type matches exactly, converts each frequency label (Once/Daily/Weekly/"
+            "Monthly) into payments inside that month, and sums them, so recurring rows are "
+            "counted as often as they occur. Use this when the question names one or more types; "
+            "use payment_per_month when no type is given, and payment_per_month_for_service for a "
+            "single hand-supplied service. Types with no records are absent from the result, and "
+            "null is returned if a matching record has no payment due in that month. Pass each "
+            "type only once and call list_type_types first to get exact spellings.",
+            {
+                "type": "object",
+                "properties": {
+                    "types": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Expense types to total, matched exactly against Records.type, e.g. [\"Grocery\", \"Subscriptions\"]. Use list_type_types for valid values; do not repeat a type.",
+                    },
+                    "target_year":  {"type": "integer", "description": "Year of the month to total."},
+                    "target_month": {"type": "integer", "description": "Month to total (1-12)."},
+                },
+                "required": ["types", "target_year", "target_month"],
             },
         ),
         __format_tool_function(
@@ -172,7 +199,8 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
             "itself, converts each stored frequency label (Once/Daily/Weekly/Monthly) into days, "
             "and sums the payments that fall in that month. Use this to answer questions like "
             "'how much did I spend this month'. Returns {\"cost\": <total>}. Do not pass service "
-            "details; use payment_per_month_for_service for a single service.",
+            "details; use payment_per_month_for_service for a single service, or "
+            "payment_per_month_for_services for a subset of types.",
             {
                 "type": "object",
                 "properties": {
