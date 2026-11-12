@@ -12,7 +12,6 @@ AVAILABLE_TOOLS = {
     "list_type_types": __listing_fields.list_unique_type,
     "search_record": search_record.custom_search_records,
     "payment_per_month_for_service": calculate.payment_per_month_for_service,
-    "payment_per_month_for_services": calculate.payment_per_month_per_services,
     "payment_per_month": calculate.payment_per_month,
 }
 
@@ -82,7 +81,7 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
 "        Workflow for questions about records:"
 "        1. Call list_record_fields, list_type_types, and list_frequency_types to learn the schema."
 "        2. Call search_record (or list_records) to find the relevant rows."
-"        3. For a monthly total, call payment_per_month(target_year, target_month) — do not sum expense yourself,"
+"        3. For a monthly total, call payment_per_month(target_year, target_month) — its result also breaks the month down per type; do not sum expense yourself,"
 "           because recurring rows (Weekly/Monthly) are charged multiple times per month."
 
 "        Rules:"
@@ -118,7 +117,7 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
             "next payment after the month ends. Use this for one specific service or a "
             "'what if' calculation. It does NOT read the database, so you must pass every "
             "argument from the record you already looked up. If you want the total for the whole "
-            "database, use payment_per_month; for chosen types, use payment_per_month_for_services. "
+            "database, use payment_per_month instead. "
             "Always check the returned `message` field "
             "before using the other values; errors come back as data, not exceptions.",
             {
@@ -134,32 +133,6 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
                 },
                 "required": ["startYear", "startMonth", "startDay",
                              "year", "month", "frequency", "expense"],
-            },
-        ),
-        __format_tool_function(
-            "payment_per_month_for_services",
-            "SELECTED TYPES MONTHLY TOTAL (reads the database). Calculate the total expense for "
-            "one or more specific expense types in one calendar month and return one total per "
-            "type, e.g. {\"Grocery\": 245.5, \"Subscriptions\": 30.0}. It looks up the records "
-            "whose type matches exactly, converts each frequency label (Once/Daily/Weekly/"
-            "Monthly) into payments inside that month, and sums them, so recurring rows are "
-            "counted as often as they occur. Use this when the question names one or more types; "
-            "use payment_per_month when no type is given, and payment_per_month_for_service for a "
-            "single hand-supplied service. Types with no records are absent from the result, and "
-            "null is returned if a matching record has no payment due in that month. Pass each "
-            "type only once and call list_type_types first to get exact spellings.",
-            {
-                "type": "object",
-                "properties": {
-                    "types": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Expense types to total, matched exactly against Records.type, e.g. [\"Grocery\", \"Subscriptions\"]. Use list_type_types for valid values; do not repeat a type.",
-                    },
-                    "target_year":  {"type": "integer", "description": "Year of the month to total."},
-                    "target_month": {"type": "integer", "description": "Month to total (1-12)."},
-                },
-                "required": ["types", "target_year", "target_month"],
             },
         ),
         __format_tool_function(
@@ -194,13 +167,17 @@ def __call_ollama(prompt: str, model: str = "gemma4:e4b"):
         ),
         __format_tool_function(
             "payment_per_month",
-            "WHOLE DATABASE MONTHLY TOTAL (no per-service arguments). Calculate the total expense "
-            "across ALL records in the database for one calendar month. It reads every record "
-            "itself, converts each stored frequency label (Once/Daily/Weekly/Monthly) into days, "
-            "and sums the payments that fall in that month. Use this to answer questions like "
-            "'how much did I spend this month'. Returns {\"cost\": <total>}. Do not pass service "
-            "details; use payment_per_month_for_service for a single service, or "
-            "payment_per_month_for_services for a subset of types.",
+            "MONTHLY TOTAL BY TYPE (reads the database). Calculate spending for one calendar month: "
+            "returns the grand total under \"total_cost\" plus one key per expense type with that "
+            "type's own total, e.g. {\"total_cost\": 245.5, \"Grocery\": 200.0, "
+            "\"Subscriptions\": 45.5}. It reads every record itself, converts each stored frequency "
+            "label (Once/Daily/Weekly/Monthly) into payments inside that month, and sums them, so "
+            "recurring rows are counted as often as they occur. Use it for both 'how much did I "
+            "spend this month' (read total_cost) and 'how much on Grocery this month' (read that "
+            "type's key) — no need to pass types. A type with no payment due that month appears as "
+            "0.0; null values plus a `message` key mean an error. Amounts are rounded to 2 decimals. "
+            "Do not pass service details; use payment_per_month_for_service for a single "
+            "hand-supplied service.",
             {
                 "type": "object",
                 "properties": {
