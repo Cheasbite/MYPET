@@ -4,7 +4,7 @@ from app import checkdb, checkAI
 from app.types import *
 from util import colors, selector, clear
 from datetime import date
-from app.funcs.summarize import basic_summary
+from app.funcs.summarize import basic_summary, summary_with_AI
 
 # run this once on run
 checkdb.check_db_exists()
@@ -19,7 +19,8 @@ step1_statements = [
     "Add a new record",
     "Search records",
     "Summarize your records",
-    "Delete records"
+    "Delete records",
+    "Exit"
 ]
 
 # Tasks start here
@@ -55,41 +56,25 @@ ___  ____   _______ _____ _____
                 continue
 
             if AI_EXIST:
-                print("A local model was detected. You can choose to use them.")
+                print("A model provider was detected. You can choose to use them.")
                 providers = [p.capitalize() for p in checkAI.check_AI_exist()]
 
                 get_summary_opt = selector.arrow_selector([*providers, "Basic Summary"])
 
-                if get_summary_opt == "Ollama":
-                    clear.clear()
+                if get_summary_opt != "Basic Summary":
+                    s = summary_with_AI(get_summary_opt)
 
-                    print("Choose a model!")
-                    models = checkAI.use_AI("ollama")
-                    if models == -1: continue
+                    if s == -1 or s == 0: continue
 
-                    model = selector.arrow_selector(models)
-
-                    clear.clear()
-
-                    print("To exit, type exit or /bye")
-                    while True:
-                        try:
-                            prompt = input(f"{colors.COLORS["GREEN"]}>>> {colors.COLORS["RESET"]}")
-
-                            if prompt == "exit" or prompt == "/bye": break
-                            if prompt == "": continue
-
-                            checkAI.call_ollama(prompt, model)
-
-                        except KeyboardInterrupt: exit(0)
-
-                elif get_summary_opt == "Basic Summary":
-                    clear.clear()
-                    basic_summary(today=today)
+                clear.clear()
+                basic_summary(today=today)
 
             else: basic_summary(today=today)
 
+        if step1 == "Exit": exit(0)
+
         clear.clear()
 
-    except KeyboardInterrupt: exit(0)
+    except KeyboardInterrupt:
+        exit(0)
 

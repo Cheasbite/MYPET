@@ -2,6 +2,7 @@ import os
 import subprocess
 import re
 import json
+import requests
 from datetime import date
 from .tools import calculate, list_record_field, search_record
 from util import colors
@@ -16,69 +17,8 @@ AVAILABLE_TOOLS = {
     "payment_per_month": calculate.payment_per_month,
 }
 
-# Conversation history kept in memory for the life of the process. It is never
-# written to disk; it only lets later prompts see earlier questions and tool results.
-__conversation_history: list[dict] = []
-
-def check_AI_exist() -> list[str]:
-    return __get_providers()
-
-def use_AI(providers: str):
-    local_models = None
-    if providers == "ollama":
-        local_models = __get_local_model()
-    else:
-        print("Coming Soon!")
-        return -1
-
-    return local_models
-
-def __get_local_model():
-    result = subprocess.run(["ollama", "ls"], check=True, text=True, capture_output=True)
-    local_models = re.findall(r"\n([^ ]+)", result.stdout.strip())
-
-    return local_models
-
-def __get_providers():
-    keywords = ["ollama", "antropic", "openai", "gemini"]
-    providers = []
-
-    for key, val in os.environ.items():
-        for kw in keywords:
-            if kw in key.lower() or kw in val.lower():
-                providers.append(kw)
-
-    return providers
-
-def __format_tool_function(name: str, description: str, params: object):
-    tool = {
-            "type": "function",
-            "function": {
-                "name": name,
-                "description": description,
-                "parameters": params,
-            },
-        }
-
-    return tool
-
-def __trim_history(history: list[dict], max_messages: int = 60) -> None:
-    if len(history) <= max_messages:
-        return
-
-    # Always keep the system prompt at index 0 and cut on a user-message boundary
-    # so an assistant tool_calls message is never separated from its tool results.
-    while len(history) > max_messages:
-        del history[1]
-
-        while len(history) > 1 and history[1].get("role") != "user":
-            del history[1]
-
-def call_ollama(prompt: str, model: str = "gemma4:e4b"):
-    import requests
-
-    systemPrompt = (
-        f"You are MYPET's expense assistant. Today is {date.today():%A, %d %B %Y}."
+SYSTEM_PROMPT = (
+f"You are MYPET's expense assistant. Today is {date.today():%A, %d %B %Y}."
 
 "        Workflow for questions about records:"
 "        1. Call list_record_fields, list_type_types, and list_frequency_types to learn the schema."
@@ -110,9 +50,64 @@ def call_ollama(prompt: str, model: str = "gemma4:e4b"):
 "                Checking your spending for both grocery and utility, they account towards 30% of the total spending this month. Therefore, I wouldn't suggest so."
 
 "                If you can give me additional context about your reason and budget, I may be able to give a better recommendation or trying to find other services to reduce."
-    )
+)
 
-    tools = [
+# Conversation history kept in memory for the life of the process. It is never
+# written to disk; it only lets later prompts see earlier questions and tool results.
+__conversation_history: list[dict] = []
+
+def check_AI_exist() -> list[str]:
+    return __get_providers()
+
+def use_AI(providers: str):
+    models = None
+    api_key = None
+    if providers == "ollama":
+        models = __get_local_model()
+
+    elif providers == "gemini":
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        models_url = "https://generativelanguage.googleapis.com/v1/models"
+        header = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+
+        res = requests.get(url=models_url, headers=header)
+
+        if res.status_code != 200:
+            print(res.text)
+            return -1, -1
+
+        data = res.json()
+        data_models = data.get('models')
+
+        models = []
+        for m in data_models:
+            models.append({"displayName": m.get("displayName"), "model": m.get("name")})
+    else:
+        print("Coming Soon!")
+        return -1, -1
+
+    return models, api_key
+
+def __get_local_model():
+    result = subprocess.run(["ollama", "ls"], check=True, text=True, capture_output=True)
+    local_models = re.findall(r"\n([^ ]+)", result.stdout.strip())
+
+    return local_models
+
+def __get_providers():
+    keywords = ["ollama", "antropic", "openai", "gemini"]
+    providers = []
+
+    for key, val in os.environ.items():
+        for kw in keywords:
+            if kw in key.lower() or kw in val.lower():
+                providers.append(kw)
+
+    return providers
+
+def __tools():
+    custom_tools = [
         __format_tool_function(
             "payment_per_month_for_service",
             "SINGLE SERVICE (database not used). Given the start date, interval and cost of ONE "
@@ -192,12 +187,38 @@ def call_ollama(prompt: str, model: str = "gemma4:e4b"):
             },
         ),
     ]
+    return custom_tools
 
+def __format_tool_function(name: str, description: str, params: object):
+    tool = {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": params,
+            },
+        }
+
+    return tool
+
+def __trim_history(history: list[dict], max_messages: int = 60) -> None:
+    if len(history) <= max_messages:
+        return
+
+    # Always keep the system prompt at index 0 and cut on a user-message boundary
+    # so an assistant tool_calls message is never separated from its tool results.
+    while len(history) > max_messages:
+        del history[1]
+
+        while len(history) > 1 and history[1].get("role") != "user":
+            del history[1]
+
+def call_ollama(prompt: str, model: str = "gemma4:e4b"):
     url = "http://localhost:11434/api/chat"
     headers = {"Content-Type": "application/json"}
 
     if not __conversation_history:
-        __conversation_history.append({"role": "system", "content": systemPrompt})
+        __conversation_history.append({"role": "system", "content": SYSTEM_PROMPT})
 
     __trim_history(__conversation_history)
     __conversation_history.append({"role": "user", "content": prompt})
@@ -206,7 +227,7 @@ def call_ollama(prompt: str, model: str = "gemma4:e4b"):
     payload = {
         "model": model,
         "messages": messages,
-        "tools": tools,
+        "tools": __tools(),
         "stream": False,
         "think": True,
         "options": { "temperature": 0 }
@@ -267,11 +288,124 @@ def call_ollama(prompt: str, model: str = "gemma4:e4b"):
 
     print("Stopped: the model kept calling tools without producing an answer.")
 
+def call_gemini(prompt: str, model: str, api: str, interaction_id: str | None = None):
+    tool = __tools()
+
+    # Make the tools compliant with how gemini expects
+    gemini_tools = []
+    for t in tool:
+        defaultset = {"type": "function"}
+        n = t.get("function")
+        defaultset.update(n)
+        gemini_tools.append(defaultset)
+
+    interaction_id = interaction_id
+
+    url = "https://generativelanguage.googleapis.com/v1beta/interactions"
+    headers = {"x-goog-api-key": api, "Content-Type": "application/json"}
+
+    payload = [
+        {
+            "model": model,
+            "input": prompt,
+            "stream": False,
+            "tools": gemini_tools,
+            "system_instruction": SYSTEM_PROMPT,
+        }
+    ]
+
+    if interaction_id:
+        payload[0].update({"previous_interaction_id": interaction_id})
+
+    for _ in range(20):
+        response = requests.post(url, headers=headers, json=payload[0])
+
+        if response.status_code != 200:
+            print(f"Error {response.status_code}: {response.text}")
+            return -1
+
+        message = response.json()
+
+        interaction_id = message.get("id")
+
+        steps = message.get("steps")[1]
+
+        # only exists if the model ask for tool
+        interaction_type = steps.get("type")
+
+        if interaction_type != "function_call":
+            content = steps.get("content")
+
+            if not content:
+                continue
+
+            content = content[0]
+            print(f"{colors.COLORS["PURPLE"]}Model{colors.COLORS["RESET"]}:", content.get("text"))
+            break
+
+        if interaction_type == "function_call":
+            name = steps.get("name")
+            arguments = steps.get("arguments") or {}
+            call_id = steps.get("id")
+
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+
+            func = AVAILABLE_TOOLS.get(name)
+
+            if func is None:
+                result = {"error": f"Unknown tool '{name}'. Available tools: {AVAILABLE_TOOLS.keys()}"}
+            else:
+                try:
+                    result = {
+                        "type": "text",
+                        "text": f"{func(**arguments)}"
+                        }
+                except Exception as e:
+                    result = {
+                        "type": "text",
+                        "text": {
+                            "error": {f"Tool '{name}' failed: {e}"}
+                        }
+                    }
+
+            payload.clear()
+            payload.append({
+                  "model": model,
+                  "input": [{
+                      "name": name,
+                      "type": "function_result",
+                      "call_id": call_id,
+                      "result": json.dumps(result, default=str)
+                      }],
+                  "tools": gemini_tools,
+                  "previous_interaction_id": interaction_id,
+                })
+
+    return interaction_id
+
 if __name__ == "__main__":
+    api_key = os.getenv("GEMINI_API_KEY")
+    id = None
+
+    if not api_key:
+        exit(0)
+
+    if id == 0 or id == -1:
+        print("Error with id", id)
+        exit(0)
+
     while True:
-        prompt = input(">>> ")
+        try:
+            prompt = input(f"{colors.COLORS["GREEN"]}>>> {colors.COLORS["RESET"]}")
 
-        if prompt == "exit" or prompt == "/bye": break
+            if prompt == "exit" or prompt == "/bye": break
+            if prompt == "": continue
 
-        call_ollama(prompt)
+            id = call_gemini(prompt, "gemini-3.1-flash-lite", api_key, id)
+
+        except KeyboardInterrupt: exit(0)
 

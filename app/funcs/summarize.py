@@ -1,6 +1,69 @@
+import requests
+from typing import Literal
 from ..tools import calculate
-from util import table, colors
+from util import table, colors, clear, selector
 from datetime import date
+from ..checkAI import use_AI, call_ollama, call_gemini
+
+def __loop(func, model, api=None, id=None, delete_url = None):
+    id = id
+    api = api
+    try:
+        while True:
+            prompt = input(f"{colors.COLORS["GREEN"]}>>> {colors.COLORS["RESET"]}")
+
+            if prompt == "exit" or prompt == "/bye": break
+            if prompt == "": continue
+
+            if api:
+                id = func(prompt, model, api, id)
+            else:
+                func(prompt, model)
+
+    except KeyboardInterrupt: exit(0)
+    finally:
+        if delete_url:
+            requests.delete(f"{delete_url}/{id}")
+
+def summary_with_AI(provider: Literal["Gemma", "Ollama"]):
+    clear.clear()
+
+    if provider == "Ollama":
+        print("Choose a model!")
+        models, _ = use_AI("ollama")
+        if models == -1:
+            return -1
+
+        model = selector.arrow_selector(models)
+
+        clear.clear()
+
+        print("To exit, type exit or /bye")
+
+        __loop(call_ollama, model)
+
+    if provider == "Gemini":
+        print("Choose a model! (Your privacy is cooked!)")
+        models, api= use_AI("gemini")
+
+        display_models = [m.get("displayName") for m in models]
+        name_models = [m.get("model") for m in models]
+
+        model = selector.arrow_selector(display_models)
+
+        model = name_models[display_models.index(model)]
+
+        url = "https://generativelanguage.googleapis.com/v1beta/interactions"
+
+        clear.clear()
+
+        print("To exit, type exit or /bye")
+
+        __loop(call_gemini, model, api, None, url)
+
+    clear.clear()
+
+    return 0
 
 def basic_summary(today: date) -> None:
 
