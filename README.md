@@ -6,11 +6,11 @@ It supports adding, deleting, summarizing and searching through your records. <b
 - [x] Everything is locally stored and persist across multiple session
 - [x] Use your Agent to help you understand your records that fit your needs when summarizing
     - Supported Providers:
-        - [x] Ollama
+        - [x] Ollama (Local only meaning no OLLAMA_API_KEY)
         - [x] Gemini
 
 > [!NOTE]
-> The current supported providers are supported mainly because <br>
+> The current supported providers are supported mainly because
 > testing them is possible.
 
 This is a project for our course.

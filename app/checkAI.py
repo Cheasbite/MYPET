@@ -1,3 +1,21 @@
+"""
+=================================
+    checkAI.py
+================================
+
+This file contains anything that relates to AI.
+It currently includes:
+    - Checking for an AI provider (If cloud, get their environment keys via {PROVIDER}_API_KEY)
+    - Functions for tool calling
+    - System prompts for the model
+    - Dedicated functions for each provider (eg. call_ollama, call_gemini)
+
+Providers that are supported are Ollama (Local) and Gemini.
+
+Note:
+    functions that begins with __ are private function that should not be used outside this file!
+"""
+
 import os
 import subprocess
 import re
@@ -18,38 +36,37 @@ AVAILABLE_TOOLS = {
 }
 
 SYSTEM_PROMPT = (
-f"You are MYPET's expense assistant. Today is {date.today():%A, %d %B %Y}."
+f"  You are MYPET's expense assistant. Today is {date.today():%A, %d %B %Y}."
+"   Workflow for questions about records:"
+"       1. Call list_record_fields, list_type_types, and list_frequency_types to learn the schema."
+"       2. Call search_record (or list_records) to find the relevant rows."
+"       3. For a monthly total, call payment_per_month(target_year, target_month) — its result also breaks the month down per type; do not sum expense yourself,"
+"          because recurring rows (Weekly/Monthly) are charged multiple times per month."
+"       4. If ask for anything specific about which is the cost the most in a type, make sure to search the frequency and account for the frequency too"
+"          since in a single month, those expenses can occur multiple time."
 
-"        Workflow for questions about records:"
-"        1. Call list_record_fields, list_type_types, and list_frequency_types to learn the schema."
-"        2. Call search_record (or list_records) to find the relevant rows."
-"        3. For a monthly total, call payment_per_month(target_year, target_month) — its result also breaks the month down per type; do not sum expense yourself,"
-"           because recurring rows (Weekly/Monthly) are charged multiple times per month."
-"        4. If ask for anything specific about which is the cost the most in a type, make sure to search the frequency and account for the frequency too"
-"           since in a single month, those expenses can occur multiple time."
+"   Rules:"
+"       - Never invent dates, fields, record names, or amounts. Use the date above."
+"       - Never INSERT/UPDATE/DELETE. The database is read-only."
+"       - If a tool returns an error, read `message`, fix the arguments, retry once."
+"       - If the data needed doesn't exist, say exactly what's missing."
+"       - Plain text only (CLI), short and concise."
 
-"        Rules:"
-"        - Never invent dates, fields, record names, or amounts. Use the date above."
-"        - Never INSERT/UPDATE/DELETE. The database is read-only."
-"        - If a tool returns an error, read `message`, fix the arguments, retry once."
-"        - If the data needed doesn't exist, say exactly what's missing."
-"        - Plain text only (CLI), short and concise."
+"       Example:"
+"           1."
+"               What is my montly expense for this month?"
 
-"        Example:"
-"            1."
-"                What is my montly expense for this month?"
+"               Your monthly expense is $XXX, mostly contributed by Y because of the frequency spending which is twice a month costing $XX."
 
-"                Your monthly expense is $XXX, mostly contributed by Y because of the frequency spending which is twice a month costing $XX."
+"               <you may ask your question here if needed but this example has none>"
 
-"                <you may ask your question here if needed but this example has none>"
+"          2."
+"               Can I reduce my spending in grocery and utility in this month?"
 
-"           2."
-"                Can I reduce my spending in grocery and utility in this month?"
+"               Those options are neccessary for everyday needs, which I cannot exactly give without additional context."
+"               Checking your spending for both grocery and utility, they account towards 30% of the total spending this month. Therefore, I wouldn't suggest so."
 
-"                Those options are neccessary for everyday needs, which I cannot exactly give without additional context."
-"                Checking your spending for both grocery and utility, they account towards 30% of the total spending this month. Therefore, I wouldn't suggest so."
-
-"                If you can give me additional context about your reason and budget, I may be able to give a better recommendation or trying to find other services to reduce."
+"               If you can give me additional context about your reason and budget, I may be able to give a better recommendation or trying to find other services to reduce."
 )
 
 # Conversation history kept in memory for the life of the process. It is never
@@ -78,11 +95,19 @@ def use_AI(providers: str):
             return -1, -1
 
         data = res.json()
+
+        deprecated_models = ["gemini-2.5-flash-lite", "gemini-2.5-pro", "gemini-2.5-flash"]
+        deprecated_models = [f"models/{dm}" for dm in deprecated_models]
         data_models = data.get('models')
 
         models = []
         for m in data_models:
-            models.append({"displayName": m.get("displayName"), "model": m.get("name")})
+            model = m.get('name')
+
+            # If a deprecated models is found, skip it
+            if model in deprecated_models: continue
+
+            models.append({"displayName": m.get("displayName"), "model": model})
     else:
         print("Coming Soon!")
         return -1, -1
@@ -96,7 +121,7 @@ def __get_local_model():
     return local_models
 
 def __get_providers():
-    keywords = ["ollama", "antropic", "openai", "gemini"]
+    keywords = ["ollama", "gemini"]
     providers = []
 
     for key, val in os.environ.items():

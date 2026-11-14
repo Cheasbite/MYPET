@@ -1,3 +1,18 @@
+"""
+=================================
+    selector.py
+================================
+
+Allow the user to use the arrow key to select from list of options in the terminal.
+
+Example:
+ > Add a new record (Note: This would be highlighted cyan)
+   Search records
+   Summarize your records
+   Delete records
+   Exit
+"""
+
 import sys
 from .colors import COLORS
 

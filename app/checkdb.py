@@ -1,3 +1,14 @@
+"""
+=================================
+    checkdb.py
+================================
+
+This file purpose is to check if the user has a db directory and the record.db file.
+If not, automatically create it.
+
+It also checks if their database is empty. If so, they can't use the summarize feature!
+"""
+
 import os
 import sqlite3
 from pathlib import Path

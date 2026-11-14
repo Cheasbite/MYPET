@@ -1,3 +1,11 @@
+"""
+=================================
+    clear.py
+================================
+
+It just clears the terminal.
+"""
+
 import subprocess
 import sys
 

@@ -1,3 +1,21 @@
+"""
+=================================
+    algorithm.py
+================================
+This file purpose is to quickly calculate the cost of a month and account for offsets
+that can remained in a month by using the difference of the target days and the difference
+of the start day.
+
+It primarily uses the formula: start + k * N
+where N is the frequency of the spending in days and k is the total occurance of N in the month
+
+Example:
+    In January there is 31 days, say your spending occur every 7 days and you started at 1st of Jan.
+
+    You'll spend on the same record 4 times (28 days) remaining 3 days.
+
+    The 3 days will shift to the next month automatically.
+"""
 from datetime import date, timedelta
 from dataclasses import dataclass
 
