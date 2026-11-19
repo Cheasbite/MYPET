@@ -52,16 +52,17 @@ def __get_key_pressed():
     if sys.platform == 'win32':
         import msvcrt # for window support
         ch = msvcrt.getch()
-
+        
         if ch in (b'\x00', b'\xe0'):
              ch1 = msvcrt.getch()
 
              if ch1 == b'H': return "UP"
              if ch1 == b'P': return "DOWN"
-             elif ch == b'\r': return "ENTER"
+        
+        if ch == b'\r': return "ENTER"
 
         # best guess to capture CTRL+C in window
-        if ord(msvcrt.getch()) == 3: return "INTERRUPT"
+        if ch == b'\x03': return "INTERRUPT"
     else:
         import termios
         import tty

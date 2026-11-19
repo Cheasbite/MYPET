@@ -45,8 +45,8 @@ ___  ____   _______ _____ _____
         colors.cprint("arrow key", "YELLOW")
 
         # The first step:
-        step1 = selector.arrow_selector(step1_statements)
-
+        step1 = selector.arrow_selector(step1_statements)\
+        
         # SUMMARY
         if step1 == step1_statements[2]:
             clear.clear()
