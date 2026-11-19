@@ -1,10 +1,13 @@
 # This is where our main program will be that wrap the entire system
 # Basically it's the central hub to run the entire system
+from sqlite3 import enable_callback_tracebacks
+
 from app import checkdb, checkAI
 from app.types import *
 from util import colors, selector, clear
 from datetime import date
 from app.funcs.summarize import basic_summary, summary_with_AI
+import re
 
 # run this once on run
 checkdb.check_db_exists()
@@ -45,8 +48,8 @@ ___  ____   _______ _____ _____
         colors.cprint("arrow key", "YELLOW")
 
         # The first step:
-        step1 = selector.arrow_selector(step1_statements)\
-        
+        step1 = selector.arrow_selector(step1_statements)
+
         # SUMMARY
         if step1 == step1_statements[2]:
             clear.clear()
