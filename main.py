@@ -1,5 +1,7 @@
 # This is where our main program will be that wrap the entire system
 # Basically it's the central hub to run the entire system
+from sqlite3 import enable_callback_tracebacks
+
 from app import checkdb, checkAI
 from app.types import *
 from util import colors, selector, clear
