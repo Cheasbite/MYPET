@@ -5,6 +5,7 @@ from app.types import *
 from util import colors, selector, clear
 from datetime import date
 from app.funcs.summarize import basic_summary, summary_with_AI
+import re 
 
 # run this once on run
 checkdb.check_db_exists()
@@ -45,7 +46,61 @@ ___  ____   _______ _____ _____
         colors.cprint("arrow key", "YELLOW")
 
         # The first step:
-        step1 = selector.arrow_selector(step1_statements)\
+        step1 = selector.arrow_selector(step1_statements)
+        #add record
+        if step1 == step1_statements[0]:
+            clear.clear()
+
+            name = input("Enter Record's Name:")
+            
+            default_types = ["Grocery", "Utility", "Subscription", "Custom Type"]
+            print("Select Record's Type")
+            
+            types = selector.arrow_selector(default_types)
+            
+            if types == "Custom Type":
+                types = input("Enter Record's Type:")
+                
+            expense = 0
+            while True:
+                try: 
+                    expense = float(input("Enter Record's Expense:"))
+                    if expense < 0:
+                        raise AssertionError
+                    break
+                except ValueError:
+                    colors.cprint("Enter a valid number!", "RED")
+                except AssertionError:
+                    colors.cprint("Expense cannot be less than 0!", "RED")
+                except Exception as e:
+                    colors.cprint("Error", "RED")
+                    
+            default_frequency = ["Daily", "Weekly", "Monthly", "Custom Frequency"]        
+            print("Select Record's Frequency")
+            frequency = selector.arrow_selector(default_frequency)
+            if frequency == "Custom Frequency":
+
+                while True:
+                    try:   
+                        frequency = input("Enter Record's Frequency (integer [d or w]):")
+                        if frequency == "": raise AssertionError("Frequency cannot be empty!")
+                    
+                        match = re.findall(r"(\d+)\s*([A-Za-z])?", frequency)
+                        if not match: raise AssertionError("Please enter a valid frequency (e.g. 2 d, 3 w)!")
+                        fmatch = match[0]
+                        number, day= *fmatch
+                        if number == "0": raise AssertionError("Frequency cannot be 0!")
+                        if day not in ["d", "w", ""]: raise AssertionError("Please enter a valid frequency (e.g. 2 d, 3 w)!")
+                        
+                        if day == "w" :
+                            frequency = number + " week"
+                        if day in ["d", ""]:
+                            frequency = number + " day"
+                            
+                    except ValueError:
+                        colors.cprint("Enter a valid date!", "RED")
+                    except Exception as e:
+                        colors.cprint(f"Error, {e}", "RED")
         
         # SUMMARY
         if step1 == step1_statements[2]:
