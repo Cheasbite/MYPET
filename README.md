@@ -1,4 +1,4 @@
-# Welocome to MY Personal Expense Tracker
+# Welcome to MY Personal Expense Tracker
 A Personal Expense Tracker writtern in python to track your daily spendings. <br>
 It supports adding, deleting, summarizing and searching through your records. <br>
 
@@ -32,4 +32,15 @@ python3 -m main
 - [ ] Search Records
 - [x] Summarize Records
 - [ ] Delete Records
+
+## Contributions:
+- SUN CHANMENGLY
+    - Shipped the *Summarize Records* Feature
+    - Orchestrate the flow and design of the project structure
+- BE SOVANNARITH
+    - Shipped the *Add Record* Feature
+    - Testing and fixing bugs for Window Compatability
+- CHHIM RITHY
+    - Shipped the *Search Records* Feature
+    - Shipped the *Delete Records* Feature
 
