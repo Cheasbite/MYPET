@@ -90,7 +90,7 @@ ___  ____   _______ _____ _____
                         match = re.findall(r"(\d+)\s*([A-Za-z])?", frequency)
                         if not match: raise AssertionError("Please enter a valid frequency (e.g. 2 d, 3 w)!")
                         fmatch = match[0]
-                        number, day= *fmatch
+                        number, day= fmatch[0], fmatch[1]
                         if number == "0": raise AssertionError("Frequency cannot be 0!")
                         if day not in ["d", "w", ""]: raise AssertionError("Please enter a valid frequency (e.g. 2 d, 3 w)!")
                         
